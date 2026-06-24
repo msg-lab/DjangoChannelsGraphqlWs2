@@ -29,7 +29,7 @@ import asyncio
 import collections
 import hashlib
 import logging
-from typing import Optional
+from typing import Any, Optional
 
 import asgiref.sync
 import channels.db
@@ -161,6 +161,24 @@ class Subscription(graphene.ObjectType):
     # to 1 drops all notifications in the queue except the latest one.
     # Useful to skip intermediate notifications, e.g. progress reports.
     notification_queue_limit: Optional[int] = None
+
+    # Initial payload. Set this to send an "initial" notification with
+    # this payload to a client as soon as it subscribes, before any call
+    # to `Subscription.broadcast`. The payload is routed through the
+    # usual `publish` resolver, so `publish` receives it (with `info`)
+    # and formats the response like any other notification.
+    #
+    # May be either a value, or a callable `(root, info, *args, **kwds)
+    # -> payload` evaluated once per subscription. The callable form lets
+    # the payload be computed per-subscriber from the just-resolved
+    # `info.context` (e.g. the authenticated user/tenant) and carry the
+    # same shape a `broadcast` would, so `publish` needs no special case.
+    # A callable that touches the DB must wrap itself in
+    # `database_sync_to_async` (like `subscribe`). `None` (default, or a
+    # callable returning `None`) means no initial notification is sent.
+    # Ported from AndreyMZ/DjangoChannelsGraphqlWs@5f90762 (extended to
+    # support the callable form).
+    initial_payload: Any = None
 
     @classmethod
     def broadcast(cls, *, group=None, payload=None):
