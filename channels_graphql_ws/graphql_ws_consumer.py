@@ -1185,6 +1185,36 @@ class GraphqlWsConsumer(ch_websocket.AsyncJsonWebsocketConsumer):
                             # have capacity to process item.
                             pass
 
+        # Send the subscription's initial payload (if any) to THIS
+        # client only. It is enqueued into this subscription's private
+        # notification queue *before* the subscription is registered for
+        # broadcasts (added to `self._subscriptions` / channel groups
+        # below), so it is guaranteed to be the first notification
+        # delivered and cannot be lost or reordered by a concurrent
+        # `broadcast`. The payload is routed through `publish` like any
+        # other notification.
+        #
+        # `initial_payload` may be a value or a callable `(root, info,
+        # *args, **kwds) -> payload`, evaluated here so it can be computed
+        # per-subscriber from the just-resolved `info.context` (e.g. the
+        # authenticated user). A callable that touches the DB must wrap
+        # itself in `database_sync_to_async` (as `subscribe` does); its
+        # awaitable result is awaited. `None` means "no initial payload".
+        # Serialization is offloaded to a thread because
+        # `Serializer.serialize` may touch the DB for payloads containing
+        # Django models (mirrors `Subscription.broadcast`).
+        # Ported from AndreyMZ/DjangoChannelsGraphqlWs@5f90762.
+        initial_payload = subscription_class.initial_payload
+        if callable(initial_payload):
+            initial_payload = initial_payload(root, info, *args, **kwds)
+            if asyncio.iscoroutine(initial_payload):
+                initial_payload = await initial_payload
+        if initial_payload is not None:
+            serialized_initial_payload = await channels.db.database_sync_to_async(
+                Serializer.serialize, thread_sensitive=False
+            )(initial_payload)
+            enqueue_notification(serialized_initial_payload)
+
         wait_list = []
         for group in groups:
             self._sids_by_group.setdefault(group, []).append(operation_id)
