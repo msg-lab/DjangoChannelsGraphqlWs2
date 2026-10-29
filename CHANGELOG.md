@@ -23,6 +23,15 @@ SOFTWARE OR THE USE OR OTHER DEALINGS IN THE SOFTWARE.
 
 # Changelog
 
+## [Unreleased]
+
+- Relaxed the exact `graphql-core = "3.2.3"` pin to `>=3.2.12,<3.3` so
+  consumers can take GHSA-vj8h-fx38-h3vc (quadratic complexity in the
+  `OverlappingFieldsCanBeMerged` validation rule, fixed in 3.2.12). The
+  vendored copy of `graphql.execution.subscribe.subscribe` in
+  `graphql_ws_consumer.py` still matches upstream 3.2.x: the only change
+  there is a new defaulted `max_coercion_errors` parameter.
+
 ## [1.0.0rc7] - 2023-08-17
 
 - Supported the most recent WebSocket sub-protocol

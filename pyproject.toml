@@ -51,7 +51,10 @@ asgiref = "^3"
 channels = "^4"
 Django = "^5"
 graphene = "^3"
-graphql-core = "3.2.3" # Carefully test after upgrade, since we path private internals.
+# >= 3.2.12 for GHSA-vj8h-fx38-h3vc (quadratic OverlappingFieldsCanBeMerged
+# validation). Test carefully after any upgrade: subscription.py vendors
+# graphql.execution.subscribe.subscribe, so diff it against the new release.
+graphql-core = ">=3.2.12,<3.3"
 msgpack = "^1"
 
 # Development dependencies.
